@@ -1,0 +1,48 @@
+import sqlite3
+
+def get_filtered_products(min_rating=None, sort_by_rating=False):
+    """Fetches products with their average ratings and filters or sorts them based on selection."""
+    conn = sqlite3.connect("database.db")
+    cursor = conn.cursor()
+
+    query = """
+    SELECT 
+        p.id, 
+        p.product_name, 
+        p.description, 
+        COALESCE(AVG(r.rating), 0) AS avg_rating, 
+        COUNT(r.id) AS total_reviews
+    FROM products p
+    LEFT JOIN reviews r ON p.id = r.product_id
+    GROUP BY p.id
+    """
+
+    if min_rating is not None:
+        query += " HAVING avg_rating >= ?"
+        params = (min_rating,)
+    else:
+        params = ()
+
+    if sort_by_rating:
+        query += " ORDER BY avg_rating DESC"
+
+    cursor.execute(query, params)
+    results = cursor.fetchall()
+
+    conn.close()
+    return results
+
+
+if __name__ == "__main__":
+    print("\nFilter & Sort Products by Reviews")
+    min_rating = input("Enter minimum average rating (or press Enter to skip): ")
+    sort_by = input("Sort by rating? (yes/no): ").strip().lower()
+
+    min_rating = float(min_rating) if min_rating else None
+    sort_by_rating = True if sort_by == "yes" else False
+
+    products = get_filtered_products(min_rating=min_rating, sort_by_rating=sort_by_rating)
+
+    print("\nFiltered Products:")
+    for product in products:
+        print(f"ID: {product[0]}, Name: {product[1]}, Avg Rating: {product[3]:.2f}, Reviews: {product[4]}")
